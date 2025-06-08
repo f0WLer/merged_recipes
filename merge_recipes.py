@@ -57,31 +57,40 @@ def get_all_recipe_files(zip_file, modid):
 def extract_output_ids(recipe_json):
     outputs = []
 
+    # Handle standard Minecraft crafting result
     if 'result' in recipe_json and isinstance(recipe_json['result'], dict):
-        rid = recipe_json['result'].get('id')
+        rid = recipe_json['result'].get('id') or recipe_json['result'].get('item')
         if rid:
             outputs.append(rid)
+
+    # Create-style multi-output format
     elif 'results' in recipe_json and isinstance(recipe_json['results'], list):
         for r in recipe_json['results']:
-            rid = r.get('id')
+            rid = r.get('id') or r.get('item')
             if rid:
                 outputs.append(rid)
+
     elif 'output' in recipe_json:
         output = recipe_json['output']
-        if isinstance(output, dict) and 'id' in output:
-            outputs.append(output['id'])
+        if isinstance(output, dict):
+            rid = output.get('id') or output.get('item')
+            if rid:
+                outputs.append(rid)
         elif isinstance(output, str):
             outputs.append(output)
+
     elif 'outputs' in recipe_json:
         for out in recipe_json['outputs']:
-            if isinstance(out, dict) and 'id' in out:
-                outputs.append(out['id'])
+            if isinstance(out, dict):
+                rid = out.get('id') or out.get('item')
+                if rid:
+                    outputs.append(rid)
             elif isinstance(out, str):
                 outputs.append(out)
 
-    # Clean duplicates & ensure strings only
-    outputs = list(set(o for o in outputs if isinstance(o, str)))
-    return outputs
+    # Deduplicate & ensure strings
+    return list(set(o for o in outputs if isinstance(o, str)))
+
 
 def extract_recipes_from_zip(jar_path, modid_filter=None):
     recipes = {}
