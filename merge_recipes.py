@@ -39,20 +39,19 @@ def get_modid_from_jar(jar_path):
                     continue
         # fallback: modid = jar filename before first dash or underscore
         filename = os.path.basename(jar_path)
-        fallback_modid = re.split(r'[-_]', filename)[0]
-        return fallback_modid.lower()
+        name_without_ext = os.path.splitext(filename)[0]
+        fallback_modid = name_without_ext.lower()
+        return fallback_modid
     except Exception as e:
         print(f"Warning: Could not get modid for {jar_path}: {e}")
         return None
 
-def get_all_recipe_files(zip_file, modid):
-    # Return list of all recipe JSON paths in zip under data/<modid>/recipes/ and data/<modid>/recipe/ recursively
-    candidates = []
-    prefixes = [f"data/{modid}/recipes/", f"data/{modid}/recipe/"]
-    for f in zip_file.namelist():
-        if any(f.startswith(prefix) for prefix in prefixes) and f.endswith('.json'):
-            candidates.append(f)
-    return candidates
+def get_all_recipe_files(zip_file):
+    # Matches any path like data/*/recipes/*.json or data/*/recipe/*.json
+    return [
+        f for f in zip_file.namelist()
+        if f.startswith("data/") and "/recipe" in f and f.endswith(".json")
+    ]
 
 def extract_output_ids(recipe_json):
     outputs = []
@@ -100,12 +99,14 @@ def extract_recipes_from_zip(jar_path, modid_filter=None):
             if not modid:
                 print(f"Could not detect modid for jar {jar_path}")
                 return recipes
-            if modid not in MODID_WHITELIST:
+            normalized_modid = modid.replace('-', '_')
+            if not any(whitelisted in normalized_modid for whitelisted in MODID_WHITELIST):
                 print(f"Skipping mod '{modid}' (not in whitelist)")
                 return recipes
             print(f"Extracting recipes from mod jar '{os.path.basename(jar_path)}' modid(s): {modid}")
 
-            recipe_files = get_all_recipe_files(z, modid)
+            recipe_files = get_all_recipe_files(z)
+            print(f"Found {len(recipe_files)} recipe files in '{modid}'")
             for rf in recipe_files:
                 try:
                     with z.open(rf) as f:
